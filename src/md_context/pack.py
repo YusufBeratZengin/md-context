@@ -135,6 +135,8 @@ def build_pack(
     for _, _, _, source in sorted(candidates, key=lambda item: (-item[0], item[1], item[2])):
         if top is not None and len(pack.sources) >= top:
             break
+        if pack.estimated_tokens >= budget:
+            break
         pack.sources.append(source)
         if _measure(pack, output_format, estimator) <= budget:
             continue
@@ -156,8 +158,7 @@ def build_pack(
                 high = middle - 1
         if best:
             pack.sources.append(best)
-            if top is not None and len(pack.sources) >= top:
-                break
+            break
     _measure(pack, output_format, estimator)
     if pack.estimated_tokens > budget:
         raise BudgetError("token estimator did not produce a stable in-budget result")
