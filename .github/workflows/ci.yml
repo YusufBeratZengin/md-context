@@ -15,6 +15,13 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         python: ["3.10", "3.14"]
+        include:
+          - os: ubuntu-latest
+            python: "3.11"
+          - os: ubuntu-latest
+            python: "3.12"
+          - os: ubuntu-latest
+            python: "3.13"
     env:
       PYTHONUTF8: "1"
     steps:
@@ -41,3 +48,10 @@ jobs:
           cd "${RUNNER_TEMP}"
           md-context --version
           python -c "from importlib.resources import files; assert files('md_context').joinpath('py.typed').is_file()"
+      - name: Run documented quickstart on installed wheel
+        shell: bash
+        run: |
+          cd "${RUNNER_TEMP}"
+          md-context index "${GITHUB_WORKSPACE}/tests/fixtures/vault" --cache-dir quickstart-cache
+          md-context query "valve" --root "${GITHUB_WORKSPACE}/tests/fixtures/vault" --cache-dir quickstart-cache --budget 4000
+          md-context stats --root "${GITHUB_WORKSPACE}/tests/fixtures/vault" --cache-dir quickstart-cache
