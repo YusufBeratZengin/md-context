@@ -94,7 +94,7 @@ class GoldenTests(unittest.TestCase):
             # Assert fixture directory remained completely clean
             self.assertFalse(
                 (FIXTURE / ".md-context").exists(),
-                "Running quickstart with --cache-dir polluted tests/fixtures/vault with .md-context",
+                "Running quickstart with --cache-dir polluted fixture with .md-context",
             )
 
     def test_readme_excerpt_matches_golden(self):
