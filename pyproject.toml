@@ -11,24 +11,47 @@ requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "Yusuf Berat Zengin"}]
-keywords = ["markdown", "context", "llm", "obsidian", "bm25"]
+keywords = [
+  "markdown",
+  "context",
+  "llm",
+  "obsidian",
+  "bm25",
+  "rag",
+  "context-window",
+  "knowledge-base",
+  "notes",
+  "token-budget",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Text Processing :: Markup :: Markdown",
   "Typing :: Typed",
 ]
 dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/YusufBeratZengin/md-context"
+Source = "https://github.com/YusufBeratZengin/md-context"
+Changelog = "https://github.com/YusufBeratZengin/md-context/blob/main/CHANGELOG.md"
 Issues = "https://github.com/YusufBeratZengin/md-context/issues"
 
 [project.scripts]
 md-context = "md_context.cli:main"
 
 [project.optional-dependencies]
-dev = ["ruff>=0.9", "mypy>=1.14"]
+dev = ["ruff>=0.9", "mypy>=1.14", "twine>=6.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/md_context"]
