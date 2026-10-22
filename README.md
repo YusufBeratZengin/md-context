@@ -1,5 +1,9 @@
 # md-context
 
+[![CI](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml/badge.svg)](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/md-context.svg)](https://pypi.org/project/md-context/)
+[![License](https://img.shields.io/github/license/YusufBeratZengin/md-context.svg)](LICENSE)
+
 [Türkçe](README.tr.md)
 
 Build a context pack for an LLM from a local folder of Markdown notes. md-context
@@ -9,19 +13,70 @@ documentation folders. Python 3.10 or newer; zero runtime dependencies.
 
 ## Install and try
 
-Install from a checkout:
+Install from PyPI or checkout:
 
 ```sh
-python -m pip install .
-md-context index tests/fixtures/vault
-md-context query "irrigation valve schedule" --root tests/fixtures/vault --budget 4000
-md-context stats --root tests/fixtures/vault
+python -m pip install md-context
+```
+
+Quickstart with custom cache directory (keeps fixture clean):
+
+```sh
+md-context index tests/fixtures/vault --cache-dir .cache
+md-context query "valve" --root tests/fixtures/vault --cache-dir .cache --budget 4000
+md-context stats --root tests/fixtures/vault --cache-dir .cache
+```
+
+Captured terminal transcript:
+
+```text
+$ md-context index tests/fixtures/vault --cache-dir .cache
+{"notes": 4, "chunks": 8, "links": 2, "tags": 8, "tag_edges": 9, "excluded": 3, "strip_diacritics": false}
+
+$ md-context query "valve" --root tests/fixtures/vault --cache-dir .cache --budget 4000
+# Context pack
+
+Query: valve
+
+## Valve schedule
+
+Source: `Orchard.md`
+
+Open the east valve at sunrise. Check soil moisture before the next irrigation cycle.
+
+## Orchard irrigation
+
+Source: `Orchard.md`
+
+A fictional orchard uses drip irrigation to conserve water.
+See [[Water storage]] for the supply plan. #planning
+
+## Maintenance
+
+Source: `Orchard.md`
+
+Inspect each filter weekly and clean sediment from the pipes.
+
+## Water storage
+
+Source: `Water storage.md`
+
+A demonstration tank holds rainwater for the orchard.
+
+## Capacity
+
+Source: `Water storage.md`
+
+Reserve one quarter of the tank for dry weather. [[Orchard]]
+
+$ md-context stats --root tests/fixtures/vault --cache-dir .cache
+{"notes": 4, "chunks": 8, "links": 2, "tags": 8, "tag_edges": 9, "excluded": 3, "strip_diacritics": false}
 ```
 
 Run without installation (POSIX shell):
 
 ```sh
-PYTHONPATH=src python -m md_context query "water storage" --root tests/fixtures/vault
+PYTHONPATH=src python -m md_context query "water storage" --root tests/fixtures/vault --cache-dir .cache
 ```
 
 PowerShell equivalent:
@@ -29,7 +84,7 @@ PowerShell equivalent:
 ```powershell
 $env:PYTHONPATH = 'src'
 $env:PYTHONUTF8 = '1'
-py -m md_context query 'water storage' --root tests/fixtures/vault
+py -m md_context query 'water storage' --root tests/fixtures/vault --cache-dir .cache
 ```
 
 To work from inside a vault:
@@ -39,19 +94,29 @@ cd /path/to/notes
 md-context index . --strip-diacritics
 md-context query "irrigation" --budget 4000
 md-context query "irrigation" --budget 4000 --format json
+md-context query "irrigation" --top 2 --include-tag gardening
 md-context stats
 ```
 
 `query` and `stats` find the nearest `.md-context/index.json` in the current folder
 or its parents. Use `--root <dir>` from anywhere; an existing index is optional for
-this form. `index` stores a JSON snapshot in the indexed folder's `.md-context/`.
+this form. `index` stores a JSON snapshot in the indexed folder's `.md-context/`
+(or under `--cache-dir PATH` / `MD_CONTEXT_CACHE` environment variable).
 Every CLI query and stats call rescans the source folder and replaces that snapshot,
 preserving the normalization option. Deleted, newly private, and newly ignored
 notes therefore leave the next successful snapshot and query. Reindex without
-`--strip-diacritics` to turn accent folding off. Invalid frontmatter or unreadable
-UTF-8 fails the operation with exit status 2 and a diagnostic on stderr.
+`--strip-diacritics` to turn accent folding off.
+
+If a folder contains no Markdown files, `index` produces an index with 0 notes,
+`query` returns an empty context pack with exit status 0, and `stats` reports
+`{"notes": 0, ...}`. Invalid frontmatter, corrupt cache files, or unreadable
+non-UTF-8 files fail the operation with exit status 2 and a diagnostic naming the
+offending file on stderr, never an unhandled traceback.
 
 ## Pipe into an agent
+
+Ready-to-use pipe scripts are provided in [`examples/agent-pipe.sh`](examples/agent-pipe.sh)
+and [`examples/agent-pipe.ps1`](examples/agent-pipe.ps1).
 
 With a local agent command that accepts context on standard input:
 
@@ -82,6 +147,16 @@ source has `path` (relative to the vault), `title`, `heading`, `content`, `score
 and `truncated`. Scores describe note relevance; selection also favors matching
 sections. No matches produce an empty pack. A tiny budget that cannot hold the
 output envelope produces an error.
+
+### CLI options for `query`
+
+- `--budget N`: Maximum token budget for the complete output (default: `4000`).
+- `--format md|json`: Output format; defaults to `md`. Invalid choices exit with status 2.
+- `--top N`: Maximum number of sections to include in the context pack. Must be positive.
+- `--include-tag TAG`: Only include notes with this tag (repeatable for multiple tags).
+- `--exclude-tag TAG`: Exclude notes with this tag (repeatable for multiple tags).
+- `--cache-dir PATH`: Custom directory to read and write the index cache snapshot.
+- `--root PATH`: Vault root folder.
 
 ## Notes, privacy, and ignores
 
@@ -162,15 +237,35 @@ and requested output format; formatting a pack differently requires a new budget
 calculation. Character truncation can cut a sentence or code block. No room is
 reserved for your agent's system prompt, tools, or answer.
 
+## Performance and benchmark
+
+md-context caches the pre-tokenized corpus and inverted index in memory on the
+loaded `Index` object without altering the persisted cache schema version.
+
+On a synthetic benchmark of 2,000 notes (`scripts/benchmark.py`):
+- `build_index`: ~6.6 s
+- `save_index`: ~0.10 s
+- `load_index`: ~0.03 s
+- 20 queries: ~1.5 s total (~76 ms/query; first query warmup ~130 ms)
+
+*(Approximate, machine dependent numbers measured on Python 3.11).*
+
 ## Python API
 
 ```python
-from md_context import build_index, build_pack, save_index, search
+from md_context import build_index, build_pack, load_index, save_index, search
 
 index = build_index("./notes", strip_diacritics=True)
 save_index(index)  # Optional: queries can operate entirely in memory.
 matches = search(index, "water", title_boost=2.0, neighbor_boost=0.2)
-pack = build_pack(index, "water", budget=4000, output_format="json")
+pack = build_pack(
+    index,
+    "water",
+    budget=4000,
+    top=5,
+    include_tags=["gardening"],
+    output_format="json",
+)
 print(pack.to_json(), end="")
 
 # Plug in a tokenizer you already have; no tokenizer dependency is bundled.
@@ -181,9 +276,7 @@ print(pack.to_json(), end="")
 Custom estimators must be deterministic. Prefix search fills the budget best with
 monotone counters; nonmonotone tokenizers can leave unused space. The final rendered
 output is also measured to keep the budget valid. `build_index` refreshes the source;
-`load_index` loads a
-snapshot without rescanning. Ranking and selection currently operate in memory
-and scan the corpus per query; large vaults may be slow. There is no semantic or
+`load_index` loads a snapshot without rescanning. There is no semantic or
 vector search. `.mdcontextignore` is an exclusion tool, not an access-control boundary.
 
 ## Development
@@ -199,7 +292,7 @@ python -m mypy
 For dependency-free tests without installation, set `PYTHONPATH=src` as shown
 above. Tests use original fictional notes and write temporary data only under
 `is/test-tmp/` in the checkout. CI runs lint, typing, tests, and a wheel smoke check
-on Ubuntu and Windows with Python 3.10 and 3.14.
+on Ubuntu (Python 3.10–3.14) and Windows (Python 3.10, 3.14).
 
 Contributions: [CONTRIBUTING.md](CONTRIBUTING.md). Changes:
 [CHANGELOG.md](CHANGELOG.md). Licensed under the [MIT License](LICENSE).

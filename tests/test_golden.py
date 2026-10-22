@@ -96,3 +96,14 @@ class GoldenTests(unittest.TestCase):
                 (FIXTURE / ".md-context").exists(),
                 "Running quickstart with --cache-dir polluted tests/fixtures/vault with .md-context",
             )
+
+    def test_readme_excerpt_matches_golden(self):
+        golden_lines = GOLDEN.read_text(encoding="utf-8").replace("\r\n", "\n").splitlines()
+        excerpt = "\n".join(golden_lines[:9])
+        for filename in ["README.md", "README.tr.md"]:
+            readme_text = (PROJECT / filename).read_text(encoding="utf-8").replace("\r\n", "\n")
+            self.assertIn(
+                excerpt,
+                readme_text,
+                f"Excerpt from golden file not found in {filename}",
+            )
