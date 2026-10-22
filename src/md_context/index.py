@@ -103,7 +103,7 @@ def build_index(root: str | Path, *, strip_diacritics: bool = False) -> Index:
     if not root.is_dir():
         raise ValueError(f"not a directory: {root}")
     ignore_path = root / ".mdcontextignore"
-    if ignore_path.is_symlink():
+    if ignore_path.is_symlink() or os.path.islink(ignore_path):
         raise ValueError(".mdcontextignore must not be a symlink")
     rules = ignore_path.read_text(encoding="utf-8-sig").splitlines() if ignore_path.exists() else []
     notes: list[Note] = []
@@ -118,19 +118,28 @@ def build_index(root: str | Path, *, strip_diacritics: bool = False) -> Index:
             for name in dirs
             if name not in {".git", ".md-context", ".obsidian"}
             and not (Path(directory) / name).is_symlink()
+            and not os.path.islink(Path(directory) / name)
         )
         for name in sorted(files):
             path = Path(directory) / name
             if path.suffix.lower() != ".md":
                 continue
             relative = path.relative_to(root).as_posix()
-            if path.is_symlink() or is_ignored(relative, rules):
+            if path.is_symlink() or os.path.islink(path) or is_ignored(relative, rules):
                 excluded += 1
                 continue
             try:
                 metadata, body = parse_frontmatter(path.read_text(encoding="utf-8-sig"))
             except FrontmatterError as exc:
                 raise FrontmatterError(f"{relative}: {exc}") from exc
+            except UnicodeDecodeError as exc:
+                raise UnicodeDecodeError(
+                    exc.encoding,
+                    exc.object,
+                    exc.start,
+                    exc.end,
+                    f"{relative}: {exc.reason}",
+                ) from exc
             visibility = metadata.get("visibility", "")
             if isinstance(visibility, str) and visibility.strip().casefold() == "private":
                 excluded += 1
@@ -158,20 +167,31 @@ def build_index(root: str | Path, *, strip_diacritics: bool = False) -> Index:
     return Index(root, _resolve_links(notes), strip_diacritics, excluded)
 
 
-def _cache_path(root: Path) -> Path:
-    directory = root / CACHE_DIRECTORY
+def _cache_path(root: Path, cache_dir: str | Path | None = None) -> Path:
+    if cache_dir is not None:
+        directory = Path(cache_dir).resolve()
+    elif "MD_CONTEXT_CACHE" in os.environ and os.environ["MD_CONTEXT_CACHE"].strip():
+        directory = Path(os.environ["MD_CONTEXT_CACHE"].strip()).resolve()
+    else:
+        directory = root / CACHE_DIRECTORY
     path = directory / "index.json"
-    if directory.is_symlink() or path.is_symlink():
+    if (
+        directory.is_symlink()
+        or path.is_symlink()
+        or os.path.islink(directory)
+        or os.path.islink(path)
+    ):
         raise ValueError("index cache must not be a symlink")
     return path
 
 
-def save_index(index: Index) -> Path:
+def save_index(index: Index, cache_dir: str | Path | None = None) -> Path:
     """Replace the cache atomically; it contains the full text of included notes."""
-    path = _cache_path(index.root)
-    path.parent.mkdir(exist_ok=True)
+    path = _cache_path(index.root, cache_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
     data = {
         "version": CACHE_VERSION,
+        "root": str(index.root),
         "strip_diacritics": index.strip_diacritics,
         "excluded_count": index.excluded_count,
         "notes": [asdict(note) for note in index.notes],
@@ -195,10 +215,10 @@ def save_index(index: Index) -> Path:
     return path
 
 
-def load_index(root: str | Path) -> Index:
+def load_index(root: str | Path, cache_dir: str | Path | None = None) -> Index:
     root = Path(root).resolve()
     try:
-        data: Any = json.loads(_cache_path(root).read_text(encoding="utf-8"))
+        data: Any = json.loads(_cache_path(root, cache_dir).read_text(encoding="utf-8"))
         if data["version"] != CACHE_VERSION:
             raise ValueError("unsupported index version; run md-context index again")
         notes = [

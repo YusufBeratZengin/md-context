@@ -53,7 +53,7 @@ class Pack:
 
     def render(self, output_format: str = "md") -> str:
         if output_format not in {"md", "json"}:
-            raise ValueError("format must be md or json")
+            raise ValueError(f"invalid format '{output_format}'; choose 'md' or 'json'")
         return self.to_markdown() if output_format == "md" else self.to_json()
 
 
@@ -87,6 +87,9 @@ def build_pack(
     *,
     output_format: str = "md",
     estimator: TokenEstimator = estimate_tokens,
+    top: int | None = None,
+    include_tags: list[str] | None = None,
+    exclude_tags: list[str] | None = None,
 ) -> Pack:
     """Greedily select relevant chunks; an oversized chunk may be prefix-trimmed.
 
@@ -96,12 +99,19 @@ def build_pack(
     """
     if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
         raise ValueError("budget must be a positive integer")
+    if top is not None and (isinstance(top, bool) or not isinstance(top, int) or top <= 0):
+        raise ValueError("top must be a positive integer")
     pack = Pack(query, budget)
     if _measure(pack, output_format, estimator) > budget:
         raise BudgetError("budget is too small for the output envelope; increase --budget")
     terms = set(tokenize(query, index.strip_diacritics))
     candidates: list[tuple[float, str, int, Source]] = []
-    for result in search(index, query):
+    for result in search(
+        index,
+        query,
+        include_tags=include_tags,
+        exclude_tags=exclude_tags,
+    ):
         note = result.note
         for position, chunk in enumerate(note.chunks):
             heading_terms = set(tokenize(chunk.heading, index.strip_diacritics))
@@ -123,6 +133,8 @@ def build_pack(
                 )
             )
     for _, _, _, source in sorted(candidates, key=lambda item: (-item[0], item[1], item[2])):
+        if top is not None and len(pack.sources) >= top:
+            break
         pack.sources.append(source)
         if _measure(pack, output_format, estimator) <= budget:
             continue
@@ -144,6 +156,8 @@ def build_pack(
                 high = middle - 1
         if best:
             pack.sources.append(best)
+            if top is not None and len(pack.sources) >= top:
+                break
     _measure(pack, output_format, estimator)
     if pack.estimated_tokens > budget:
         raise BudgetError("token estimator did not produce a stable in-budget result")
