@@ -57,6 +57,61 @@ class RankingTests(unittest.TestCase):
             search(build_index(FIXTURE, strip_diacritics=True), "cafe")[0].note.path, "Unicode.md"
         )
 
+    def test_turkish_retrieval_and_stop_punctuation(self):
+        notes = [
+            note(
+                "su_deposu.md",
+                "Bahçe için su deposu ve yağmur suyu toplama planı.",
+                title="Su deposu",
+                tags=["su", "depo"],
+            ),
+            note(
+                "irrigasyon.md",
+                "Damlama irrigasyon hattı ve vana kontrolü.",
+                title="İrrigasyon",
+                tags=["tarim"],
+            ),
+            note(
+                "isik.md",
+                "Bahçede ışık ölçümü ve sensör verisi.",
+                title="ışık",
+                tags=["olcum"],
+            ),
+        ]
+        index = Index(Path("."), notes, strip_diacritics=False)
+
+        # "IŞIK" matches "ışık" without strip_diacritics
+        results = search(index, "IŞIK")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].note.path, "isik.md")
+
+        # "isik" does not match "ışık" without strip_diacritics
+        self.assertEqual(search(index, "isik"), [])
+
+        # "isik" matches "ışık" with strip_diacritics
+        index_stripped = Index(Path("."), notes, strip_diacritics=True)
+        results_stripped = search(index_stripped, "isik")
+        self.assertEqual(len(results_stripped), 1)
+        self.assertEqual(results_stripped[0].note.path, "isik.md")
+
+        # Turkish queries for "Su deposu" and "İrrigasyon"
+        self.assertEqual(search(index, "su deposu")[0].note.path, "su_deposu.md")
+        self.assertEqual(search(index, "irrigasyon")[0].note.path, "irrigasyon.md")
+
+        # Packs with Turkish terms
+        pack_isik = build_pack(index_stripped, "isik", 4000)
+        self.assertEqual(len(pack_isik.sources), 1)
+        self.assertEqual(pack_isik.sources[0].path, "isik.md")
+
+        pack_upper = build_pack(index, "IŞIK", 4000)
+        self.assertEqual(len(pack_upper.sources), 1)
+        self.assertEqual(pack_upper.sources[0].path, "isik.md")
+
+        # Query containing only stop punctuation returns empty pack without error
+        pack = build_pack(index, "!?. , ;: ---", 4000)
+        self.assertEqual(pack.sources, [])
+        self.assertEqual(pack.query, "!?. , ;: ---")
+
     def test_shared_tags_form_one_hop_neighbors_without_self_boost(self):
         index = Index(
             Path("."),
@@ -87,6 +142,22 @@ class RankingTests(unittest.TestCase):
         )
         self.assertEqual(search(index, "quartz")[0].note.path, "short.md")
 
+    def test_include_and_exclude_tag_filters(self):
+        index = build_index(FIXTURE)
+        results_all = search(index, "water")
+        paths = [r.note.path for r in results_all]
+        self.assertIn("Orchard.md", paths)
+        self.assertIn("Water storage.md", paths)
+
+        # Include tag gardening: only Orchard.md has gardening
+        results_inc = search(index, "water", include_tags=["gardening"])
+        self.assertEqual([r.note.path for r in results_inc], ["Orchard.md"])
+
+        # Exclude tag gardening: Orchard.md is excluded
+        results_exc = search(index, "water", exclude_tags=["gardening"])
+        self.assertNotIn("Orchard.md", [r.note.path for r in results_exc])
+        self.assertIn("Water storage.md", [r.note.path for r in results_exc])
+
 
 class PackTests(unittest.TestCase):
     def test_both_formats_fit_many_budgets(self):
@@ -105,6 +176,13 @@ class PackTests(unittest.TestCase):
         self.assertIn("Source: `Orchard.md`", pack.to_markdown())
         self.assertIn("## Valve schedule", pack.to_markdown())
         self.assertTrue(pack.sources)
+
+    def test_top_sections_limit(self):
+        index = build_index(FIXTURE)
+        pack_all = build_pack(index, "water", 4000)
+        self.assertGreater(len(pack_all.sources), 1)
+        pack_top1 = build_pack(index, "water", 4000, top=1)
+        self.assertEqual(len(pack_top1.sources), 1)
 
     def test_truncates_large_chunk(self):
         index = Index(Path("."), [note("large.md", "quartz " * 1000)])
@@ -132,6 +210,10 @@ class PackTests(unittest.TestCase):
             build_pack(index, "water", estimator=lambda _: -1)
         with self.assertRaises(ValueError):
             build_pack(index, "water", output_format="xml")
+        with self.assertRaises(ValueError):
+            build_pack(index, "water", top=0)
+        with self.assertRaises(ValueError):
+            build_pack(index, "water", top=-1)
 
     def test_custom_estimator_rechecks_json_estimate_digits(self):
         def estimator(text):
