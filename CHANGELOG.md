@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Include filename in error diagnostics when reading non-UTF-8 Markdown notes.
 - Prevent fixture pollution in `tests/fixtures/vault` by defaulting documentation and testing workflows to custom cache directories.
 
-## [0.1.0] — 2026-10-22
+## [0.1.0] — 2026-10-23
 
 ### Added
 - Local Markdown indexing with an atomic, versioned JSON cache.
