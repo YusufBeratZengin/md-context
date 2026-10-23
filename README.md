@@ -2,24 +2,34 @@
 
 [![CI](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml/badge.svg)](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/md-context.svg)](https://pypi.org/project/md-context/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/github/license/YusufBeratZengin/md-context.svg)](LICENSE)
 
 [Türkçe](README.tr.md)
 
-Build a context pack for an LLM from a local folder of Markdown notes. md-context
-ranks notes against a query, selects heading sections, and emits Markdown or JSON
-within an estimated token budget. It works with Obsidian-style vaults and ordinary
-documentation folders. Python 3.10 or newer; zero runtime dependencies.
+Build token-budgeted context packs for LLMs from local Markdown notes and Obsidian vaults.
 
-## Install and try
+![md-context CLI demonstration](docs/demo.svg)
 
-Install from PyPI or checkout:
+## Why md-context?
+
+- **Strict token budgets without overrun**: Guarantees the complete rendered output (including file paths, headings, and JSON framing) strictly obeys your token budget—preventing unexpected LLM context window overflow and API errors.
+- **Graph-aware BM25 ranking**: Combines BM25 keyword relevance with title/tag boosts, recency decay, and bidirectional 1-hop link/tag graph spreading—delivering high-precision context from linked personal notes without needing embeddings or a vector database.
+- **Local, fast, and privacy-first**: Zero runtime dependencies, zero external network calls, and instant startup. Strict privacy boundaries exclude `visibility: private` notes and `.mdcontextignore` patterns before text ever reaches memory or the cache snapshot.
+
+## Quick start
+
+### 1. Installation
+
+Install from PyPI:
 
 ```sh
 python -m pip install md-context
 ```
 
-Quickstart with custom cache directory (keeps fixture clean):
+### 2. Try with sample vault
+
+Run the quickstart commands using a custom cache directory:
 
 ```sh
 md-context index tests/fixtures/vault --cache-dir .cache
@@ -27,7 +37,7 @@ md-context query "valve" --root tests/fixtures/vault --cache-dir .cache --budget
 md-context stats --root tests/fixtures/vault --cache-dir .cache
 ```
 
-Captured terminal transcript:
+Captured terminal output:
 
 ```text
 $ md-context index tests/fixtures/vault --cache-dir .cache
@@ -73,7 +83,9 @@ $ md-context stats --root tests/fixtures/vault --cache-dir .cache
 {"notes": 4, "chunks": 8, "links": 2, "tags": 8, "tag_edges": 9, "excluded": 3, "strip_diacritics": false}
 ```
 
-Run without installation (POSIX shell):
+### 3. Run without installation
+
+POSIX shell:
 
 ```sh
 PYTHONPATH=src python -m md_context query "water storage" --root tests/fixtures/vault --cache-dir .cache
@@ -87,7 +99,7 @@ $env:PYTHONUTF8 = '1'
 py -m md_context query 'water storage' --root tests/fixtures/vault --cache-dir .cache
 ```
 
-To work from inside a vault:
+### 4. Working from inside your vault
 
 ```sh
 cd /path/to/notes
@@ -98,25 +110,11 @@ md-context query "irrigation" --top 2 --include-tag gardening
 md-context stats
 ```
 
-`query` and `stats` find the nearest `.md-context/index.json` in the current folder
-or its parents. Use `--root <dir>` from anywhere; an existing index is optional for
-this form. `index` stores a JSON snapshot in the indexed folder's `.md-context/`
-(or under `--cache-dir PATH` / `MD_CONTEXT_CACHE` environment variable).
-Every CLI query and stats call rescans the source folder and replaces that snapshot,
-preserving the normalization option. Deleted, newly private, and newly ignored
-notes therefore leave the next successful snapshot and query. Reindex without
-`--strip-diacritics` to turn accent folding off.
+## Usage examples
 
-If a folder contains no Markdown files, `index` produces an index with 0 notes,
-`query` returns an empty context pack with exit status 0, and `stats` reports
-`{"notes": 0, ...}`. Invalid frontmatter, corrupt cache files, or unreadable
-non-UTF-8 files fail the operation with exit status 2 and a diagnostic naming the
-offending file on stderr, never an unhandled traceback.
+### Piping into an LLM or agent CLI
 
-## Pipe into an agent
-
-Ready-to-use pipe scripts are provided in [`examples/agent-pipe.sh`](examples/agent-pipe.sh)
-and [`examples/agent-pipe.ps1`](examples/agent-pipe.ps1).
+Ready-to-use pipe scripts are provided in [`examples/agent-pipe.sh`](examples/agent-pipe.sh) and [`examples/agent-pipe.ps1`](examples/agent-pipe.ps1).
 
 With a local agent command that accepts context on standard input:
 
@@ -124,9 +122,7 @@ With a local agent command that accepts context on standard input:
 md-context query "irrigation valve schedule" --root ./notes --budget 4000 | local-agent
 ```
 
-`local-agent` is a placeholder for your own agent CLI. md-context makes no network
-requests. The receiving command determines where the selected text goes; review
-the pack before sending it to any external service.
+`local-agent` is a placeholder for your own agent CLI. md-context makes no network requests. The receiving command determines where the selected text goes; review the pack before sending it to any external service.
 
 Example Markdown output (excerpt):
 
@@ -142,11 +138,7 @@ Source: `Orchard.md`
 Open the east valve at sunrise. Check soil moisture before the next irrigation cycle.
 ```
 
-JSON contains `query`, `budget`, `estimated_tokens`, and a `sources` array. Each
-source has `path` (relative to the vault), `title`, `heading`, `content`, `score`,
-and `truncated`. Scores describe note relevance; selection also favors matching
-sections. No matches produce an empty pack. A tiny budget that cannot hold the
-output envelope produces an error.
+JSON output (`--format json`) contains `query`, `budget`, `estimated_tokens`, and a `sources` array. Each source has `path` (relative to the vault), `title`, `heading`, `content`, `score`, and `truncated`. Scores describe note relevance; selection also favors matching sections. No matches produce an empty pack. A tiny budget that cannot hold the output envelope produces an error.
 
 ### CLI options for `query`
 
@@ -158,11 +150,63 @@ output envelope produces an error.
 - `--cache-dir PATH`: Custom directory to read and write the index cache snapshot.
 - `--root PATH`: Vault root folder.
 
-## Notes, privacy, and ignores
+### Python API
 
-Files with a `.md` extension (case insensitive) are read recursively as UTF-8.
-Symlink files and directories are skipped, as are `.git/`, `.obsidian/`, and
-`.md-context/`. The cache and ignore file themselves cannot be symlinks.
+```python
+from md_context import build_index, build_pack, load_index, save_index, search
+
+# 1. Build an index in memory
+index = build_index("./notes", strip_diacritics=True)
+save_index(index)  # Optional: persists to .md-context/index.json
+
+# 2. Search notes
+matches = search(index, "water", title_boost=2.0, neighbor_boost=0.2)
+
+# 3. Build a token-budgeted context pack
+pack = build_pack(
+    index,
+    "water",
+    budget=4000,
+    top=5,
+    include_tags=["gardening"],
+    output_format="json",
+)
+print(pack.to_json(), end="")
+
+# 4. Plug in a custom tokenizer
+# pack = build_pack(index, "water", estimator=lambda text: len(encoder.encode(text)))
+```
+
+Custom estimators must be deterministic and return a non-negative integer. Prefix search fills the budget best with monotone counters. The final rendered output is re-measured to guarantee budget compliance.
+
+### How retrieval works
+
+- Unicode word tokens use case folding. `I`, `İ`, `ı`, and `i` match each other; optional diacritic folding also makes `café` match `cafe`.
+- BM25 uses `k1=1.2`, `b=0.75`. Title and tag matches add boosts of 2.0 and 1.5 times the term's inverse document frequency.
+- Recency multiplies lexical scores by up to 1.15, decaying with a 90-day time scale. It uses a valid `updated`, otherwise `date`, otherwise filesystem mtime. An invalid chosen date falls back to mtime; naive dates use UTC. Future dates receive the maximum recency boost.
+- `[[wikilinks]]`, `[[note#section|label]]`, and shared `#tags` connect notes. A 1-hop neighbor gets 0.2 times its strongest lexical neighbor's score. Links work in both directions; tag groups also connect members without self-boost. There is no recursive propagation.
+- Link targets resolve by vault path, then source-relative path, then unique filename stem or title. Ambiguous and missing targets are ignored. Frontmatter aliases are parsed but are not used for link resolution. Tags and links inside fenced or inline code are ignored.
+- ATX headings (`#` through `######`) split sections; fenced code is preserved. Setext headings are kept as body text. Sections are sorted by note score and query overlap, with stable path and section-order tie breaking. Oversized sections may be prefix-trimmed and marked as truncated.
+
+The default token estimate is `ceil(character_count / 4)`, **not a model tokenizer**. The budget covers the complete serialized output, including query, paths, headings, JSON metadata, and truncation markers. Character truncation can cut a sentence or code block. No room is reserved for your agent's system prompt, tools, or answer.
+
+### Performance and benchmark
+
+md-context caches the pre-tokenized corpus and inverted index in memory on the loaded `Index` object without altering the persisted cache schema version.
+
+On a synthetic benchmark of 2,000 notes (`scripts/benchmark.py`):
+- `build_index`: ~6.6 s
+- `save_index`: ~0.10 s
+- `load_index`: ~0.03 s
+- 20 queries: ~1.5 s total (~76 ms/query; first query warmup ~130 ms)
+
+*(Approximate, machine dependent numbers measured on Python 3.11).*
+
+## Configuration
+
+### Frontmatter metadata
+
+Notes with YAML frontmatter at the start of the file are parsed for titles, tags, dates, and privacy:
 
 ```yaml
 ---
@@ -174,125 +218,85 @@ visibility: public
 ---
 ```
 
-The built-in frontmatter parser supports flat `key: value` pairs, inline lists,
-block lists, quoted strings, and comments. Double quotes use JSON string escapes;
-single quotes escape an apostrophe by doubling it. Scalars, including dates,
-remain strings. Nested mappings, YAML anchors, and multiline scalars are unsupported
-and cause an error. Duplicate keys and unclosed frontmatter also fail. Frontmatter
-must start at the beginning of the file; a UTF-8 BOM is allowed.
+- Flat `key: value` pairs, inline lists, block lists, quoted strings, and comments are supported.
+- Double quotes use JSON string escapes; single quotes escape an apostrophe by doubling it.
+- Dates and scalars are preserved as strings.
+- Nested mappings, YAML anchors, and multiline scalars are unsupported and cause an error. Duplicate keys and unclosed frontmatter also fail. Frontmatter must start at the beginning of the file; a UTF-8 BOM is allowed.
+- Set `visibility: private` to completely exclude a note before its text enters the cache or retrieval results.
 
-Set `visibility: private` to exclude a note before its text enters the cache or
-retrieval results. `.mdcontextignore` at the vault root excludes paths:
+### Ignored files (`.mdcontextignore`)
+
+Place a `.mdcontextignore` file in the root of your vault to exclude files using glob syntax:
 
 ```gitignore
-# Basename patterns match at any depth.
+# Basename patterns match at any depth
 scratch-*.md
 archive/
-# Paths containing / are relative to the vault root.
+
+# Paths containing / are relative to the vault root
 drafts/**/*.md
 !drafts/ready.md
 ```
 
-Patterns are case sensitive on every OS. `*`, `?`, and character classes match
-within a path segment; `**` matches zero or more segments. A leading `/` anchors
-to the root, a trailing `/` matches directories, and later `!` rules reinclude
-matches, even inside an ignored directory. Escaped patterns and Git's full
-ignore syntax are unsupported. Built-in exclusions and private visibility cannot
-be overridden. Ignored directories are still traversed to permit reinclude rules.
+- Patterns are case-sensitive on all platforms.
+- `*`, `?`, and character classes match within a path segment; `**` matches zero or more segments.
+- A leading `/` anchors to the vault root; a trailing `/` matches directories.
+- Later `!` rules re-include matches, even inside an ignored directory.
+- Built-in exclusions: `.git/`, `.obsidian/`, `.md-context/`, and symlinks are always ignored and cannot be overridden.
 
-The cache contains full text of included notes. Keep `.md-context/` out of version
-control and backups that should not contain note content. A failed refresh leaves
-the previous cache on disk, but emits no pack. Python API snapshots also remain
-unchanged until rebuilt. Exclusion does not redact references already written in
-other public notes. See [SECURITY.md](SECURITY.md).
+### Cache storage and discovery
 
-## How retrieval works
+- By default, index snapshots are stored in `.md-context/index.json` under your vault root.
+- Override cache path using `--cache-dir PATH` or the `MD_CONTEXT_CACHE` environment variable.
+- In CLI mode, `query` and `stats` automatically discover the nearest `.md-context/index.json` in parent folders. Use `--root <dir>` from anywhere; an existing index is optional for this form.
+- Every CLI query and stats call rescans the source folder and replaces that snapshot, preserving the normalization option. Deleted, newly private, and newly ignored notes therefore leave the next successful snapshot and query.
+- The cache contains full text of included notes. Keep `.md-context/` out of version control and backups that should not contain note content. See [SECURITY.md](SECURITY.md).
 
-- Unicode word tokens use case folding. `I`, `İ`, `ı`, and `i` match each other;
-  optional diacritic folding also makes `café` match `cafe`.
-- BM25 uses `k1=1.2`, `b=0.75`. Title and tag matches add boosts of 2.0 and 1.5
-  times the term's inverse document frequency.
-- Recency multiplies lexical scores by up to 1.15, decaying with a 90-day time
-  scale. It uses a valid `updated`, otherwise `date`, otherwise filesystem mtime.
-  An invalid chosen date falls back to mtime; naive dates use UTC. Future dates
-  receive the maximum recency boost.
-- `[[wikilinks]]`, `[[note#section|label]]`, and shared frontmatter or inline
-  `#tags` connect notes. A one-hop neighbor gets 0.2 times its strongest lexical
-  neighbor's score. Links work in both directions for this boost; tag groups also
-  connect their members. There is no recursive propagation or self-boost.
-- Link targets resolve by vault path, then source-relative path, then unique
-  filename stem or title. Ambiguous and missing targets are ignored. Frontmatter
-  aliases are parsed but are not used for link resolution. Tags and links inside
-  fenced or inline code are ignored.
-- ATX headings (`#` through `######`) split sections; fenced code is preserved.
-  Setext headings are kept as body text. Sections are sorted by note score and
-  query overlap, with stable path and section-order tie breaking. Oversized
-  sections may be prefix-trimmed and marked as truncated.
+### Normalization options
 
-The default token estimate is `ceil(character_count / 4)`, **not a model tokenizer**.
-The budget covers the complete serialized output, including query, paths, headings,
-JSON metadata, and truncation markers. JSON's `estimated_tokens` is conservative
-because its own digits consume space. The guarantee applies to the chosen estimator
-and requested output format; formatting a pack differently requires a new budget
-calculation. Character truncation can cut a sentence or code block. No room is
-reserved for your agent's system prompt, tools, or answer.
+- Pass `--strip-diacritics` during `index` to fold accents (e.g., `café` matches `cafe`).
+- Turkish dotted and dotless `i` / `I` / `İ` / `ı` are handled natively without flags.
+- Re-index without `--strip-diacritics` to turn accent folding off.
 
-## Performance and benchmark
+## FAQ and limitations
 
-md-context caches the pre-tokenized corpus and inverted index in memory on the
-loaded `Index` object without altering the persisted cache schema version.
+### Is md-context a vector database or embedding search?
+No. `md-context` uses BM25 lexical ranking combined with link-graph propagation and recency weighting. It requires zero GPU compute, no model weights, and no remote embedding API calls.
 
-On a synthetic benchmark of 2,000 notes (`scripts/benchmark.py`):
-- `build_index`: ~6.6 s
-- `save_index`: ~0.10 s
-- `load_index`: ~0.03 s
-- 20 queries: ~1.5 s total (~76 ms/query; first query warmup ~130 ms)
+### How is token estimation calculated?
+By default, token count is estimated with `ceil(character_count / 4)`. You can pass a custom exact tokenizer (e.g. `tiktoken` or Hugging Face tokenizers) via the Python API `estimator` argument. The budget covers the complete serialized Markdown or JSON output envelope.
 
-*(Approximate, machine dependent numbers measured on Python 3.11).*
+### What frontmatter syntax is supported?
+The built-in parser supports flat key-value pairs, inline lists, block lists, quoted strings, and comments. Complex YAML features like nested mappings and anchors are intentionally rejected to maintain security and avoid heavyweight YAML dependencies.
 
-## Python API
+### Are symlinks followed?
+No. Symlink files and directories are ignored to prevent accidental directory traversal outside your vault. The cache and ignore file themselves cannot be symlinks.
 
-```python
-from md_context import build_index, build_pack, load_index, save_index, search
+### What happens if a folder has no Markdown files?
+`index` produces an index with 0 notes, `query` returns an empty context pack with exit status 0, and `stats` reports `{"notes": 0, ...}`. Invalid frontmatter, corrupt cache files, or unreadable non-UTF-8 files fail the operation with exit status 2 and a diagnostic naming the offending file on stderr, never an unhandled traceback.
 
-index = build_index("./notes", strip_diacritics=True)
-save_index(index)  # Optional: queries can operate entirely in memory.
-matches = search(index, "water", title_boost=2.0, neighbor_boost=0.2)
-pack = build_pack(
-    index,
-    "water",
-    budget=4000,
-    top=5,
-    include_tags=["gardening"],
-    output_format="json",
-)
-print(pack.to_json(), end="")
+## Contributing
 
-# Plug in a tokenizer you already have; no tokenizer dependency is bundled.
-# estimator must accept str and return a nonnegative int.
-# pack = build_pack(index, "water", estimator=lambda text: len(encoder.encode(text)))
-```
+Contributions, bug reports, and suggestions are welcome!
 
-Custom estimators must be deterministic. Prefix search fills the budget best with
-monotone counters; nonmonotone tokenizers can leave unused space. The final rendered
-output is also measured to keep the budget valid. `build_index` refreshes the source;
-`load_index` loads a snapshot without rescanning. There is no semantic or
-vector search. `.mdcontextignore` is an exclusion tool, not an access-control boundary.
+1. Fork the repository and clone it locally.
+2. Install development dependencies:
+   ```sh
+   python -m pip install -e ".[dev]"
+   ```
+3. Run tests with coverage:
+   ```sh
+   python -m pytest
+   ```
+4. Verify code formatting, linting, and types:
+   ```sh
+   python -m ruff check .
+   python -m ruff format --check .
+   python -m mypy
+   ```
 
-## Development
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for detailed guidelines. Releases and changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
-```sh
-python -m pip install -e ".[dev]"
-python -m unittest discover -s tests -v
-python -m ruff check .
-python -m ruff format --check .
-python -m mypy
-```
+## License
 
-For dependency-free tests without installation, set `PYTHONPATH=src` as shown
-above. Tests use original fictional notes and write temporary data only under
-`is/test-tmp/` in the checkout. CI runs lint, typing, tests, and a wheel smoke check
-on Ubuntu (Python 3.10–3.14) and Windows (Python 3.10, 3.14).
-
-Contributions: [CONTRIBUTING.md](CONTRIBUTING.md). Changes:
-[CHANGELOG.md](CHANGELOG.md). Licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
