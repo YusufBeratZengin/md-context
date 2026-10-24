@@ -1,15 +1,13 @@
 # md-context
+[![CI](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml/badge.svg)](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml) [![PyPI](https://img.shields.io/pypi/v/md-context.svg)](https://pypi.org/project/md-context/) [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/) [![License](https://img.shields.io/github/license/YusufBeratZengin/md-context.svg)](LICENSE)<br>
+[English](README.md) | [Türkçe](README.tr.md)
 
-[![CI](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml/badge.svg)](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/md-context.svg)](https://pypi.org/project/md-context/)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/github/license/YusufBeratZengin/md-context.svg)](LICENSE)
-
-[Türkçe](README.tr.md)
-
-Build token-budgeted context packs for LLMs from local Markdown notes and Obsidian vaults.
-
-![md-context CLI demonstration](docs/demo.svg)
+## Demo
+![md-context CLI demonstration](docs/demo.svg)<br>
+Build token-budgeted context packs for LLMs from local Markdown notes and Obsidian vaults.<br>
+Runs entirely locally with zero runtime dependencies, combining BM25 ranking with links between notes.<br>
+Install from a checkout: `python -m pip install .`<br>
+`md-context query "valve" --root tests/fixtures/vault --cache-dir .cache --budget 4000`
 
 ## Why md-context?
 
@@ -17,17 +15,17 @@ Build token-budgeted context packs for LLMs from local Markdown notes and Obsidi
 - **Graph-aware BM25 ranking**: Combines BM25 keyword relevance with title/tag boosts, recency decay, and bidirectional 1-hop link/tag graph spreading—delivering high-precision context from linked personal notes without needing embeddings or a vector database.
 - **Local, fast, and privacy-first**: Zero runtime dependencies, zero external network calls, and instant startup. Strict privacy boundaries exclude `visibility: private` notes and `.mdcontextignore` patterns before text ever reaches memory or the cache snapshot.
 
-## Quick start
+## Install
 
-### 1. Installation
-
-Install from PyPI:
+Install from PyPI (available once published; until then `python -m pip install .` from a checkout):
 
 ```sh
 python -m pip install md-context
 ```
 
-### 2. Try with sample vault
+## Quick start
+
+### 1. Try with sample vault
 
 Run the quickstart commands using a custom cache directory:
 
@@ -83,7 +81,7 @@ $ md-context stats --root tests/fixtures/vault --cache-dir .cache
 {"notes": 4, "chunks": 8, "links": 2, "tags": 8, "tag_edges": 9, "excluded": 3, "strip_diacritics": false}
 ```
 
-### 3. Run without installation
+### 2. Run without installation
 
 POSIX shell:
 
@@ -99,7 +97,7 @@ $env:PYTHONUTF8 = '1'
 py -m md_context query 'water storage' --root tests/fixtures/vault --cache-dir .cache
 ```
 
-### 4. Working from inside your vault
+### 3. Working from inside your vault
 
 ```sh
 cd /path/to/notes
@@ -113,8 +111,6 @@ md-context stats
 ## Usage examples
 
 ### Piping into an LLM or agent CLI
-
-Ready-to-use pipe scripts are provided in [`examples/agent-pipe.sh`](examples/agent-pipe.sh) and [`examples/agent-pipe.ps1`](examples/agent-pipe.ps1).
 
 With a local agent command that accepts context on standard input:
 
@@ -202,6 +198,10 @@ On a synthetic benchmark of 2,000 notes (`scripts/benchmark.py`):
 
 *(Approximate, machine dependent numbers measured on Python 3.11).*
 
+## Examples
+
+Ready-to-use pipe scripts are provided in [`examples/agent-pipe.sh`](examples/agent-pipe.sh) and [`examples/agent-pipe.ps1`](examples/agent-pipe.ps1).
+
 ## Configuration
 
 ### Frontmatter metadata
@@ -275,9 +275,7 @@ No. Symlink files and directories are ignored to prevent accidental directory tr
 ### What happens if a folder has no Markdown files?
 `index` produces an index with 0 notes, `query` returns an empty context pack with exit status 0, and `stats` reports `{"notes": 0, ...}`. Invalid frontmatter, corrupt cache files, or unreadable non-UTF-8 files fail the operation with exit status 2 and a diagnostic naming the offending file on stderr, never an unhandled traceback.
 
-## Contributing
-
-Contributions, bug reports, and suggestions are welcome!
+## Development
 
 1. Fork the repository and clone it locally.
 2. Install development dependencies:
@@ -292,8 +290,12 @@ Contributions, bug reports, and suggestions are welcome!
    ```sh
    python -m ruff check .
    python -m ruff format --check .
-   python -m mypy
+   python -m mypy src
    ```
+
+## Contributing
+
+Contributions, bug reports, and suggestions are welcome!
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for detailed guidelines. Releases and changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 

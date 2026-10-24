@@ -1,33 +1,31 @@
 # md-context
+[![CI](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml/badge.svg)](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml) [![PyPI](https://img.shields.io/pypi/v/md-context.svg)](https://pypi.org/project/md-context/) [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/) [![Lisans](https://img.shields.io/github/license/YusufBeratZengin/md-context.svg)](LICENSE)<br>
+[English](README.md) | [Türkçe](README.tr.md)
 
-[![CI](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml/badge.svg)](https://github.com/YusufBeratZengin/md-context/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/md-context.svg)](https://pypi.org/project/md-context/)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Lisans](https://img.shields.io/github/license/YusufBeratZengin/md-context.svg)](LICENSE)
+## Demo
+![md-context CLI gösterimi](docs/demo.svg)<br>
+Yerel Markdown notlarından ve Obsidian kasalarından LLM’ler için token bütçesine uygun bağlam paketleri üretir.<br>
+Çalışma zamanı bağımlılığı olmadan, tamamen yerel çalışır; BM25 sıralamasını notlar arasındaki bağlantılarla birleştirir.<br>
+Kurulum (kaynak koddan): `python -m pip install .`<br>
+`md-context query "valve" --root tests/fixtures/vault --cache-dir .cache --budget 4000`
 
-[English](README.md)
+## Why md-context?
 
-Yerel Markdown notlarından ve Obsidian kasalarından dil modelleri için bütçeli bağlam paketleri üretir.
+- **Token bütçesini aşmayan çıktı**: Çıktının tamamının (dosya yolları, başlıklar ve JSON çerçevesi dahil) belirlenen token bütçesine sığmasını sağlar; LLM bağlam penceresinin taşmasını ve API hatalarını önler.
+- **Bağlantıları dikkate alan BM25 sıralaması**: BM25 aramasını başlık ve etiket eşleşmeleri, güncellik ve doğrudan bağlı notlardan gelen ek puanlarla birleştirir. Embedding modeli veya vektör veritabanı gerektirmeden, birbiriyle bağlantılı notlardan sorguyla ilgili bağlamı seçer.
+- **Yerel, hızlı ve gizlilik öncelikli**: Çalışma zamanı bağımlılığı yoktur, dış ağa istek göndermez ve hızla başlar. `visibility: private` olarak işaretlenen veya `.mdcontextignore` kalıplarıyla eşleşen notları, içerikleri belleğe ya da önbelleğe alınmadan dışlar.
 
-![md-context CLI gösterimi](docs/demo.svg)
+## Install
 
-## Neden md-context?
-
-- **Aşma yapmayan kesin token bütçesi**: Çıktının tamamının (dosya yolları, başlıklar ve JSON çerçevesi dahil) belirlenen token bütçesine tam olarak sığmasını garanti eder; LLM bağlam penceresinin taşmasını ve API hatalarını önler.
-- **Çizge destekli BM25 sıralaması**: BM25 sözcüksel alaka düzeyini başlık/etiket artışları, güncellik katsayısı ve çift yönlü 1-sekmeli bağlantı/etiket çizgesiyle birleştirir; gömme modeli veya vektör veritabanı gerektirmeden kişisel notlardan yüksek doğruluklu bağlam çeker.
-- **Yerel, hızlı ve gizlilik öncelikli**: Sıfır çalışma zamanı bağımlılığı, sıfır dış ağ çağrısı ve anında başlama süresi. `visibility: private` notları ve `.mdcontextignore` kalıplarını metin belleğe veya önbelleğe hiç girmeden dışlar.
-
-## Hızlı başlangıç
-
-### 1. Kurulum
-
-PyPI üzerinden kurabilirsiniz:
+PyPI üzerinden kurulum (paket yayımlandıktan sonra kullanılabilir; o zamana kadar kaynak kod dizininde `python -m pip install .` komutunu çalıştırın):
 
 ```sh
 python -m pip install md-context
 ```
 
-### 2. Örnek kasa üzerinde deneme
+## Quick start
+
+### 1. Try with sample vault
 
 Önbelleği ayrı bir klasörde tutarak hızlı başlangıç:
 
@@ -83,7 +81,7 @@ $ md-context stats --root tests/fixtures/vault --cache-dir .cache
 {"notes": 4, "chunks": 8, "links": 2, "tags": 8, "tag_edges": 9, "excluded": 3, "strip_diacritics": false}
 ```
 
-### 3. Kurulum yapmadan çalıştırma
+### 2. Run without installation
 
 POSIX kabuğu:
 
@@ -99,7 +97,7 @@ $env:PYTHONUTF8 = '1'
 py -m md_context query 'water storage' --root tests/fixtures/vault --cache-dir .cache
 ```
 
-### 4. Kendi kasanızın içinde çalışma
+### 3. Working from inside your vault
 
 ```sh
 cd /path/to/notes
@@ -110,11 +108,9 @@ md-context query "sulama planı" --top 2 --include-tag bahce
 md-context stats
 ```
 
-## Kullanım örnekleri
+## Usage examples
 
-### Bir dil modeline veya ajana aktarma
-
-Kullanıma hazır boru hattı betikleri [`examples/agent-pipe.sh`](examples/agent-pipe.sh) ve [`examples/agent-pipe.ps1`](examples/agent-pipe.ps1) dosyalarında yer alır.
+### Piping into an LLM or agent CLI
 
 Standart girdiden bağlam okuyabilen yerel bir ajanınız varsa:
 
@@ -140,7 +136,7 @@ Open the east valve at sunrise. Check soil moisture before the next irrigation c
 
 JSON çıktısında (`--format json`) `query`, `budget`, `estimated_tokens` ve `sources` bulunur. Her kaynakta `path`, `title`, `heading`, `content`, `score` ve `truncated` alanları yer alır. Eşleşme yoksa boş paket üretilir. Çıktının temel alanlarına bile yetmeyen bir bütçe hata verir.
 
-### `query` komutu seçenekleri
+### CLI options for `query`
 
 - `--budget N`: Çıktının tamamı için azami token bütçesi (varsayılan: `4000`).
 - `--format md|json`: Çıktı biçimi; varsayılan `md`. Geçersiz değerler 2 koduyla sonlanır.
@@ -179,31 +175,35 @@ print(pack.to_json(), end="")
 
 Özel tahminciler deterministik olmalı ve negatif olmayan tamsayı döndürmelidir. Bütçe doğrulaması için üretilen nihai çıktı yeniden ölçülür.
 
-### Sıralama ve getirme mantığı
+### How retrieval works
 
-- Unicode sözcük belirteçleri harf duyarsız eşleştirilir. `I`, `İ`, `ı` ve `i` birbirleriyle eşleşir; isteğe bağlı aksan katlama ile `café` ve `cafe` de eşleşir.
+- Unicode token’ları büyük/küçük harf farkı gözetilmeden eşleştirilir. `I`, `İ`, `ı` ve `i` birbirleriyle eşleşir; isteğe bağlı aksan katlama ile `café` ve `cafe` de eşleşir.
 - BM25 parametreleri: `k1=1.2`, `b=0.75`. Başlık ve etiket eşleşmeleri, terimin IDF değerinin sırasıyla 2.0 ve 1.5 katı kadar ek puan kazandırır.
 - Güncellik çarpanı en çok 1.15'tir ve 90 günlük ölçekte azalır. Önce geçerli `updated`, sonra `date`, en son dosya mtime zamanı kullanılır.
 - `[[not]]`, `[[klasor/not#başlık|görünen metin]]` ve `#etiket` grupları notları bağlar. Doğrudan komşular, en güçlü sözcüksel eşleşmenin puanının yüzde 20'si kadar artış alır; bu artış zincirleme yayılmaz.
-- `#`–`######` başlıkları bölümleri ayırır; kod blokları korunur. Bölümler not alaka düzeyi ve sorgu örtüşmesine göre sıralanarak bütçeye yerleştirilir.
+- `#`–`######` başlıkları bölümleri ayırır; kod blokları korunur. Bölümler notun ilgi puanına ve sorguyla eşleşmesine göre sıralanarak bütçeye yerleştirilir.
 
 Varsayılan tahmin `ceil(karakter_sayısı / 4)` formülüdür; modelin gerçek tokenizer'ı değildir. Bütçeye sorgu, kaynak yolları, başlıklar, JSON alanları ve kesilme işaretleri dahildir.
 
-### Performans ve kıyaslama
+### Performance and benchmark
 
 md-context, yüklenen `Index` nesnesi üzerinde tokenize edilmiş metinleri ve ters dizini bellekte önbelleğe alır; kalıcı JSON şeması sürümünü değiştirmez.
 
 2.000 notluk sentetik bir kasada yapılan ölçümde (`scripts/benchmark.py`):
 - `build_index`: ~6,6 s
 - `save_index`: ~0,10 s
-- `load_index`: ~0.03 s
+- `load_index`: ~0,03 s
 - 20 sorgu: toplam ~1,5 s (bellekteki önbellek ile sorgu başına ortalama ~76 ms; ilk ısınma sorgusu ~130 ms)
 
-*(Python 3.11 altında ölçülmüş yaklaşık, makineye bağlı değerlerdir).*
+*(Python 3.11 ile ölçülen yaklaşık değerlerdir; sonuçlar makineye göre değişir.)*
 
-## Yapılandırma
+## Examples
 
-### Not ön bilgisi (Frontmatter)
+Çıktıyı başka bir komuta aktaran örnek betikler [`examples/agent-pipe.sh`](examples/agent-pipe.sh) ve [`examples/agent-pipe.ps1`](examples/agent-pipe.ps1) dosyalarında yer alır.
+
+## Configuration
+
+### Frontmatter metadata
 
 Dosya başındaki YAML ön bilgisi başlık, etiket, tarih ve gizlilik için okunur:
 
@@ -221,7 +221,7 @@ visibility: public
 - Tarihler dahil tekil değerler metin olarak korunur.
 - `visibility: private` değeri, notu belleğe veya arama önbelleğine hiç girmeden tamamen dışlar.
 
-### Dışlanan dosyalar (`.mdcontextignore`)
+### Ignored files (`.mdcontextignore`)
 
 Kasaya ait kök dizinde `.mdcontextignore` dosyası oluşturarak yolları dışlayabilirsiniz:
 
@@ -239,39 +239,37 @@ taslaklar/**/*.md
 - `!` ön eki önceden dışlanmış dosyaları yeniden dahil eder.
 - Kalıplar tüm işletim sistemlerinde büyük/küçük harfe duyarlıdır.
 
-### Önbellek depolama ve bulma
+### Cache storage and discovery
 
 - İndeks anlık görüntüleri varsayılan olarak kasa kökündeki `.md-context/index.json` altında tutulur.
 - `--cache-dir PATH` veya `MD_CONTEXT_CACHE` ortam değişkeni ile farklı bir yol belirtebilirsiniz.
 - CLI üzerinden çalışırken `query` ve `stats`, bulunulan klasörden yukarı doğru ilk `.md-context/index.json` dosyasını bulur. Her çalıştırma kaynak klasörü yeniden tarar ve önbelleği atomik olarak günceller.
 - Önbellek dahil edilen notların tam metnini barındırır. Gizli kalması gereken ortamlara bu klasörü dahil etmeyin. [SECURITY.md](SECURITY.md) dosyasına bakın.
 
-### Normalizasyon seçenekleri
+### Normalization options
 
 - `index` komutuna `--strip-diacritics` bayrağını vererek aksan ve harf işaretlerini aramada kaldırabilirsiniz (`café` ile `cafe` eşleşir).
 - Türkçe `i` / `I` / `İ` / `ı` harf dönüşümleri bayrak gerekmeksizin yerel olarak desteklenir.
 - Aksan kaldırmayı kapatmak için `index` komutunu bu bayrak olmadan yeniden çalıştırın.
 
-## SSS ve kısıtlamalar
+## FAQ and limitations
 
-### md-context bir vektör veritabanı veya gömme araması mıdır?
+### Is md-context a vector database or embedding search?
 Hayır. md-context, bağlantı çizgesi yayılımı ve güncellik ağırlıklandırmasıyla zenginleştirilmiş BM25 sözcüksel sıralamasını kullanır. GPU, model ağırlıkları veya uzak embedding API çağrıları gerektirmez.
 
-### Token tahmini nasıl hesaplanır?
+### How is token estimation calculated?
 Varsayılan olarak `ceil(karakter_sayısı / 4)` formülü kullanılır. Python API'si üzerinden `estimator` parametresiyle kesin tokenizer fonksiyonunuzu verebilirsiniz. Bütçe çıktının tamamını (Markdown veya JSON çerçevesi dahil) kapsar.
 
-### Hangi ön bilgi sözdizimi desteklenir?
+### What frontmatter syntax is supported?
 Yerleşik ayrıştırıcı düz anahtar-değer çiftlerini, satır içi ve blok listeleri, tırnaklı metinleri ve yorumları destekler. Güvenliği ve yalınlığı korumak amacıyla iç içe sözlükler ve YAML çapaları reddedilir.
 
-### Sembolik bağlantılar takip edilir mi?
+### Are symlinks followed?
 Hayır. Dizin dışına sızmayı önlemek için sembolik bağlantılı dosya ve dizinler yok sayılır. Önbellek ve dışlama dosyaları da sembolik bağlantı olamaz.
 
-### Klasörde hiç Markdown dosyası yoksa ne olur?
+### What happens if a folder has no Markdown files?
 `index` 0 not kaydeder, `query` boş bir bağlam paketi döndürerek 0 koduyla tamamlanır ve `stats` komutu `{"notes": 0, ...}` çıktısı verir. Hatalı ön bilgi veya bozuk dosyalarda 2 çıkış koduyla açıklayıcı hata iletilir; kontrolsüz hata dökümü oluşmaz.
 
-## Katkıda bulunma
-
-Katkılarınız, hata bildirimleriniz ve önerileriniz memnuniyetle karşılanır!
+## Development
 
 1. Depoyu forklayın ve yerel makinenize klonlayın.
 2. Geliştirme bağımlılıklarını kurun:
@@ -286,11 +284,15 @@ Katkılarınız, hata bildirimleriniz ve önerileriniz memnuniyetle karşılanı
    ```sh
    python -m ruff check .
    python -m ruff format --check .
-   python -m mypy
+   python -m mypy src
    ```
+
+## Contributing
+
+Katkılarınız, hata bildirimleriniz ve önerileriniz memnuniyetle karşılanır!
 
 Ayrıntılı yönergeler için [CONTRIBUTING.md](CONTRIBUTING.md) ve [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) belgelerine bakabilirsiniz. Değişiklikler [CHANGELOG.md](CHANGELOG.md) içinde tutulmaktadır.
 
-## Lisans
+## License
 
 Bu proje [MIT Lisansı](LICENSE) kapsamında lisanslanmıştır.
